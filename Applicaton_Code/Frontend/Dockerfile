@@ -1,6 +1,12 @@
 FROM node:14
 WORKDIR /usr/src/app
+
 COPY package*.json ./
-RUN npm install
+
+# Clean npm cache before install
+RUN npm cache clean --force && npm install
+
 COPY . .
-CMD [ "npm", "start" ]
+EXPOSE 3000
+CMD ["npm", "start"]
+
