@@ -1,0 +1,82 @@
+pipeline {
+    agent any
+
+    tools {
+        jdk 'jdk17'
+        nodejs 'node24'
+    }
+
+    environment {
+        SCANNER_HOME = tool 'sonar-scanner'
+    }
+
+    stages {
+        stage('Cleaning Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Checkout from Git') {
+            steps {
+                git branch: 'main', credentialsId: 'git-creds', url: 'https://github.com/rakesh611/3-tierAppCICD'
+            }
+        }
+
+        stage('Frontend SonarQube Analysis') {
+            steps {
+                dir('Applicaton_Code/Frontend') {
+                    withSonarQubeEnv('sonar-server') {
+                        sh """
+                        $SCANNER_HOME/bin/sonar-scanner \
+                        -Dsonar.projectName=three-tier-frontend \
+                        -Dsonar.projectKey=three-tier-frontend
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Frontend Quality Check') {
+            steps {
+                script {
+                    def qg = waitForQualityGate abortPipeline: true, credentialsId: 'Sonar-token'
+                    echo "Frontend SonarQube Quality Gate status: ${qg.status}"
+                }
+            }
+        }
+
+        stage('Backend SonarQube Analysis') {
+            steps {
+                dir('Applicaton_Code/Backend') {
+                    withSonarQubeEnv('sonar-server') {
+                        sh """
+                        $SCANNER_HOME/bin/sonar-scanner \
+                        -Dsonar.projectName=three-tier-backend \
+                        -Dsonar.projectKey=three-tier-backend
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Backend Quality Check') {
+            steps {
+                script {
+                    def qg = waitForQualityGate abortPipeline: true, credentialsId: 'Sonar-token'
+                    echo "Backend SonarQube Quality Gate status: ${qg.status}"
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+    }
+}
+
